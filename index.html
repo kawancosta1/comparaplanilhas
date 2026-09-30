@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Comparar números</title>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Comparar números</h1>
+
+    <label for="planilha">
+      Selecione a planilha:
+    </label>
+
+    <input
+      type="file"
+      id="planilha"
+      accept=".xlsx,.xls"
+    >
+
+    <p id="status-planilha">
+      Nenhuma planilha selecionada
+    </p>
+
+    <label for="numero">
+      Digite um número:
+    </label>
+
+    <input
+      type="text"
+      id="numero"
+    >
+
+    <button id="compara">
+      COMPARAR
+    </button>
+
+    <h1 id="resultado"></h1>
+  </div>
+
+  <!-- Biblioteca que lê arquivos Excel -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+  <!-- Seu JavaScript -->
+  <script src="assets/index.js"></script>
+</body>
+</html>
