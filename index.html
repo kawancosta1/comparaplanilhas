@@ -16,33 +16,34 @@
     <h1>Comparar números</h1>
 
     <label for="planilha">
-      Selecione a planilha:
+      Selecione a planilha 1:
     </label>
 
     <input
       type="file"
       id="planilha"
-      accept=".xlsx,.xls"
+      accept=".xlsx, .xls, .csv"
     >
+  <label for="planilh2">
+      Selecione a planilha 2:
+    </label> 
+     <input
+      type="file"
+      id="planilha2"
+      accept=".xlsx, .xls, .csv"
+    > <br>
 
     <p id="status-planilha">
-      Nenhuma planilha selecionada
+      
     </p>
 
-    <label for="numero">
-      Digite um número:
-    </label>
-
-    <input
-      type="text"
-      id="numero"
-    >
 
     <button id="compara">
       COMPARAR
     </button>
 
     <h1 id="resultado"></h1>
+    <h1 id="resultado2"></h1>
   </div>
 
   <!-- Biblioteca que lê arquivos Excel -->

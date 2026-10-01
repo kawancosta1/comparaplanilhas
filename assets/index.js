@@ -1,154 +1,173 @@
-let inputPlanilha = document.querySelector("#planilha");
+
+let inputPlanilha1 = document.querySelector("#planilha");
+let inputPlanilha2 = document.querySelector("#planilha2");
 let statusPlanilha = document.querySelector("#statusPlanilha");
-
 let botao = document.querySelector("#compara");
-let inputNumero = document.querySelector("#numero");
 let resultado = document.querySelector("#resultado");
+let resultado2 = document.querySelector("#resultado2");
 
-let numerosDaPlanilha = [];
+let numerosPlanilha1 = [];
+let numerosPlanilha2 = [];
 
-
-/*
-    Transforma:
-
-    11434/08  em  1143408
-    11434-08  em  1143408
-    11.434/08 em  1143408
-*/
 function normalizarNumero(valor) {
     return String(valor ?? "")
         .trim()
         .replace(/\D/g, "");
 }
 
+function saoEquivalentes(numA, numB) {
+    if (numA === numB) return true;
+    //é uma segurança para não comparar numeros curtos
+    if (numA.length < 7 || numB.length < 7) return false;
+    return numA.includes(numB) || numB.includes(numA);
+}
 
-inputPlanilha.addEventListener("change", function (evento) {
-    // esse target é onde aconteceu o  evento e o evento é a planplan e o files[0] é o arquivo que mandamos, pois o files é um array, então se mandassemosmais de um arquivo daria para acaessar todos
-    let arquivo = evento.target.files[0];
-
-    if (!arquivo) {
-        statusPlanilha.textContent =
-            "Nenhuma planilha selecionada.";
-
-        return;
-    }
-
+// --- 4. Função genérica para ler qualquer arquivo Excel ---
+// --- 4. Função genérica para ler arquivos Excel e CSV ---
+function lerPlanilha(arquivo, callbackSucesso, callbackErro) {
     let leitor = new FileReader();
 
     leitor.onload = function (eventoLeitura) {
         try {
             let dadosArquivo = eventoLeitura.target.result;
+            let pasta = XLSX.read(dadosArquivo, { type: "array" });
+            let primeiraAba = pasta.Sheets[pasta.SheetNames[0]];
 
-            let pastaDeTrabalho = XLSX.read(dadosArquivo, {
-                type: "array"
+            let linhas = XLSX.utils.sheet_to_json(primeiraAba, {
+                header: 1,
+                defval: "",
+                raw: false
             });
 
-            let nomePrimeiraAba =
-                pastaDeTrabalho.SheetNames[0];
+            if (linhas.length === 0) {
+                callbackSucesso([]);
+                return;
+            }
 
-            let primeiraAba =
-                pastaDeTrabalho.Sheets[nomePrimeiraAba];
+            let cabecalho = linhas[0].map(c => String(c).trim().toLowerCase());
+            // Descobre se existe uma coluna específica chamada "numeroprocesso" (como no CSV do Domicílio)
+            let indiceColunaProcesso = cabecalho.indexOf("numeroprocesso");
 
-            let linhas = XLSX.utils.sheet_to_json(
-                primeiraAba,
-                {
-                    header: 1,
-                    defval: "",
-                    raw: false
-                }
-            );
+            let numerosExtraidos = [];
 
-            console.log("Conteúdo da planilha:");
-            console.table(linhas);
-
-            /*
-                Percorre todas as linhas.
-                Depois percorre todas as células de cada linha.
-            */
-            numerosDaPlanilha = [];
-
-            linhas.forEach(function (linha) {
-                linha.forEach(function (celula) {
-                    let numeroNormalizado =
-                        normalizarNumero(celula);
-
-                    if (numeroNormalizado !== "") {
-                        numerosDaPlanilha.push(
-                            numeroNormalizado
-                        );
+            if (indiceColunaProcesso !== -1) {
+                // Se for o CSV do Domicílio, lê APENAS a coluna do processo (ignora CPFs, CNPJs e datas)
+                for (let i = 1; i < linhas.length; i++) {
+                    let normalizado = normalizarNumero(linhas[i][indiceColunaProcesso]);
+                    if (normalizado !== "") {
+                        numerosExtraidos.push(normalizado);
                     }
-                });
-            });
+                }
+            } else {
+                // Se for a planilha interna comum, lê as células normalmente ignorando textos e cabeçalhos
+                for (let i = 0; i < linhas.length; i++) {
+                    linhas[i].forEach(function (celula) {
+                        let normalizado = normalizarNumero(celula);
+                        // Filtra apenas o que tem tamanho de processo ou PA (mínimo 6 dígitos)
+                        if (normalizado.length >= 6) {
+                            numerosExtraidos.push(normalizado);
+                        }
+                    });
+                }
+            }
 
-            console.log(
-                "Números encontrados:",
-                numerosDaPlanilha
-            );
-
-            statusPlanilha.textContent =
-                "Planilha carregada: " +
-                numerosDaPlanilha.length +
-                " valores numéricos encontrados.";
-
-            resultado.textContent = "";
+            callbackSucesso(numerosExtraidos);
         } catch (erro) {
-            console.error("Erro ao ler planilha:", erro);
-
-            statusPlanilha.textContent =
-                "Não foi possível ler a planilha.";
+            callbackErro(erro);
         }
     };
 
-    leitor.onerror = function () {
-        statusPlanilha.textContent =
-            "Ocorreu um erro ao abrir o arquivo.";
-    };
-
+    leitor.onerror = callbackErro;
     leitor.readAsArrayBuffer(arquivo);
+}
+
+// --- 5. Evento: Carregar Planilha 1 ---
+inputPlanilha1.addEventListener("change", function (evento) {
+    let arquivo = evento.target.files[0];
+    if (!arquivo) return;
+
+    lerPlanilha(
+        arquivo,
+        function (numeros) {
+            //esse numeros é o nnumerosExtraidos
+            numerosPlanilha1 = numeros;
+            statusPlanilha.textContent = `Planilha 1 carregada: ${numeros.length} números encontrados.`;
+            resultado.textContent = "";
+        },
+        function () {
+            statusPlanilha.textContent = "Erro ao ler a Planilha 1.";
+        }
+    );
 });
 
+// --- 6. Evento: Carregar Planilha 2 ---
+inputPlanilha2.addEventListener("change", function (evento) {
+    let arquivo = evento.target.files[0];
+    if (!arquivo) return;
 
+    lerPlanilha(
+        arquivo,
+        function (numeros) {
+            numerosPlanilha2 = numeros;
+            statusPlanilha.textContent = `Planilha 2 carregada: ${numeros.length} números encontrados.`;
+            resultado.textContent = "";
+        },
+        function () {
+            statusPlanilha.textContent = "Erro ao ler a Planilha 2.";
+        }
+    );
+});
+
+// --- 7. Evento: Comparar as duas planilhas ---
 botao.addEventListener("click", function () {
-    if (numerosDaPlanilha.length === 0) {
-        resultado.textContent =
-            "Primeiro escolha uma planilha.";
-
+    // Validação: ambas precisam estar carregadas
+    if (numerosPlanilha1.length === 0 || numerosPlanilha2.length === 0) {
+        resultado.textContent = "Selecione as duas planilhas antes de comparar.";
         resultado.style.color = "orange";
-
         return;
     }
 
-    let numeroDigitado =
-        normalizarNumero(inputNumero.value);
+   let comuns = []
+   let rejeitados = []
+    
+   //cada valor de numerosPlanilha2 vai ser o num2 em cada iteração
+    numerosPlanilha2.forEach(function (num2){
 
-    if (numeroDigitado === "") {
-        resultado.textContent =
-            "Digite um número para pesquisar.";
+        let encontrou = numerosPlanilha1.some(function(num1) {
+            return saoEquivalentes(num1,num2);
+        })
 
-        resultado.style.color = "orange";
-
-        return;
-    }
-
-    let foiEncontrado =
-        numerosDaPlanilha.includes(numeroDigitado);
-
-    if (foiEncontrado) {
-        resultado.textContent =
-            inputNumero.value + " foi encontrado.";
-
-        resultado.style.color = "green";
+      if (encontrou) {
+        comuns.push(num2);
     } else {
-        resultado.textContent =
-            inputNumero.value + " não foi encontrado.";
-
-        resultado.style.color = "red";
+        rejeitados.push(num2);
     }
+
+    })
+
+//o spread espalha os itens para que o array se torne limpo e sem duplicados
+    let comunsSemDuplicadas = [...new Set(comuns)];
+    let rejeitadosSemDuplicados = [...new Set(rejeitados)];
+   // 1. Exibe os comuns
+if (comunsSemDuplicadas.length > 0) {
+    resultado.textContent = `Foram encontrados ${comunsSemDuplicadas.length} números em comum: ${comunsSemDuplicadas.join(", ")}`;
+    resultado.style.color = "green";
+} else {
+    resultado.textContent = "Nenhum número em comum foi encontrado entre as duas planilhas.";
+    resultado.style.color = "red";
+}
+
+// 2. Exibe os rejeitados (apenas processos reais >= 7)
+let rejeitadosValidos = rejeitadosSemDuplicados.filter(num => num.length >= 7);
+
+if (rejeitadosValidos.length > 0) {
+    resultado2.textContent = `Processos não encontrados na Planilha 1 (${rejeitadosValidos.length}): ${rejeitadosValidos.join(", ")}`;
+    resultado2.style.color = "#c0392b";
+} else {
+    resultado2.textContent = "Todos os processos da Planilha 2 foram encontrados na Planilha 1!";
+    resultado2.style.color = "green";
+}
 });
 
 
-inputNumero.addEventListener("keydown", function (evento) {
-    if (evento.key === "Enter") {
-        botao.click();
-    }
-});
+
