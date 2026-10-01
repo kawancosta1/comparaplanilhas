@@ -17,9 +17,15 @@ function normalizarNumero(valor) {
 
 function saoEquivalentes(numA, numB) {
     if (numA === numB) return true;
-    //é uma segurança para não comparar numeros curtos
-    if (numA.length < 7 || numB.length < 7) return false;
-    return numA.includes(numB) || numB.includes(numA);
+
+    // Remove os zeros à esquerda para comparar apenas os dígitos significativos
+    let limpoA = numA.replace(/^0+/, "");
+    let limpoB = numB.replace(/^0+/, "");
+
+    // Trava de segurança para não comparar números curtos
+    if (limpoA.length < 6 || limpoB.length < 6) return false;
+
+    return limpoA.includes(limpoB) || limpoB.includes(limpoA);
 }
 
 // --- 4. Função genérica para ler qualquer arquivo Excel ---
@@ -44,26 +50,35 @@ function lerPlanilha(arquivo, callbackSucesso, callbackErro) {
                 return;
             }
 
-            let cabecalho = linhas[0].map(c => String(c).trim().toLowerCase());
-            // Descobre se existe uma coluna específica chamada "numeroprocesso" (como no CSV do Domicílio)
-            let indiceColunaProcesso = cabecalho.indexOf("numeroprocesso");
+            // 1. Procura em qual linha está o cabeçalho e em qual coluna está o "processo"
+            let indiceLinhaCabecalho = -1;
+            let indiceColunaProcesso = -1;
+
+            for (let i = 0; i < Math.min(10, linhas.length); i++) {
+                let cabecalho = linhas[i].map(c => String(c).trim().toLowerCase());
+                let col = cabecalho.findIndex(c => c.includes("processo"));
+                if (col !== -1) {
+                    indiceLinhaCabecalho = i;
+                    indiceColunaProcesso = col;
+                    break;
+                }
+            }
 
             let numerosExtraidos = [];
 
             if (indiceColunaProcesso !== -1) {
-                // Se for o CSV do Domicílio, lê APENAS a coluna do processo (ignora CPFs, CNPJs e datas)
-                for (let i = 1; i < linhas.length; i++) {
+                // Se encontrou a coluna de processo (seja "numeroProcesso" ou "Processo"), lê apenas ela!
+                for (let i = indiceLinhaCabecalho + 1; i < linhas.length; i++) {
                     let normalizado = normalizarNumero(linhas[i][indiceColunaProcesso]);
-                    if (normalizado !== "") {
+                    if (normalizado.length >= 6) {
                         numerosExtraidos.push(normalizado);
                     }
                 }
             } else {
-                // Se for a planilha interna comum, lê as células normalmente ignorando textos e cabeçalhos
+                // Fallback para folhas sem cabeçalho padronizado
                 for (let i = 0; i < linhas.length; i++) {
                     linhas[i].forEach(function (celula) {
                         let normalizado = normalizarNumero(celula);
-                        // Filtra apenas o que tem tamanho de processo ou PA (mínimo 6 dígitos)
                         if (normalizado.length >= 6) {
                             numerosExtraidos.push(normalizado);
                         }
